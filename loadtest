@@ -1,0 +1,70 @@
+#!/opt/homebrew/bin/python3
+
+import argparse
+import asyncio
+import aiohttp
+import math
+import time
+
+# args parser
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--number", type=int, default=1000,
+                    help="Total request count to execute")
+parser.add_argument("-c", type=int, default=100,
+                    help="Concurrent requests limit")
+parser.add_argument("url", help="The URL of the request")
+args = parser.parse_args()
+
+# functions
+async def get(url, session):
+    try:
+        async with session.get(url=url) as response:
+            resp = await response.read()
+            # print("Successfully got url {} with resp of length {}.".format(url, len(resp)))
+            return 1
+    except Exception as e:
+        # print("Unable to get url {} due to {}.".format(url, e.__class__))
+        return 0
+
+async def loopRequests(url, batchSize):
+    async with aiohttp.ClientSession() as session:
+        return await asyncio.gather(*[get(url, session) for x in range(batchSize)])
+
+async def sendBatch(batchIndex):
+    # Assume total requests splits cleanly into reqs/args.c batches.
+    res = await loopRequests(args.url, args.c)
+    # Analyse results
+    num_succeeded = 0
+    for a in res:
+            num_succeeded+= a
+
+    num_failed = len(res) - num_succeeded
+    
+    return (num_succeeded, num_failed)
+
+async def main():
+    print(f"Sending {args.number} requests to: {args.url}.")
+    print(f"{args.c} reqs per batch")
+    # 2. send the requests
+    # 2.1 split request into batches
+    batches = []
+    for x in range(math.ceil(args.number/args.c)):
+        start = time.time()
+        print(f"Sending batch #{x}")
+        batches.append(await sendBatch(x))
+        (succeeded, failed) = batches[x]
+        print(f"Finished batch {x}, successful: {succeeded} failed: {failed}")
+        end = time.time()
+        print(f"duration: {round(end - start, 2)}s")
+
+
+
+    # Combined analysis of all the results
+
+
+
+asyncio.run(main())
+# 2.2 
+
+# 3. gather & process the results
+
